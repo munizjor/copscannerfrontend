@@ -41,10 +41,14 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/feeds')
       .then(res => res.json())
-      .then(setFeeds);
+      .then(setFeeds)
+      .catch(err => {
+        console.error('Failed to fetch feeds:', err);
+        setFeeds([]);
+      });
   }, []);
 
-  // Fetch alerts from API with filters and pagination
+  // Defensive fetch for alerts
   const fetchAlerts = async (reset = false, pageOverride?: number) => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -55,8 +59,14 @@ export default function Home() {
     if (minScore) params.append('minScore', minScore);
     if (maxScore) params.append('maxScore', maxScore);
     if (selectedFeed) params.append('feed', selectedFeed);
-    const res = await fetch(`/api/alerts?${params.toString()}`);
-    const data = await res.json();
+    let data = [];
+    try {
+      const res = await fetch(`/api/alerts?${params.toString()}`);
+      data = await res.json();
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+      data = [];
+    }
     if (reset) {
       setAlerts(data);
     } else {
