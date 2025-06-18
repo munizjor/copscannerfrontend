@@ -11,16 +11,55 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 })
 
-export async function getRecentAlerts() {
-  const { rows } = await pool.query(`
-    SELECT timestamp, feed, location, source_url, transcript, keyword, classifier_label, classifier_score, audio_path
+export async function getRecentAlerts({ limit = 15, offset = 0, classifier = '', keyword = '', minScore = '', maxScore = '', feed = '' }: {
+  limit?: number,
+  offset?: number,
+  classifier?: string,
+  keyword?: string,
+  minScore?: string,
+  maxScore?: string,
+  feed?: string
+} = {}) {
+  let query = `SELECT timestamp, feed, location, source_url, transcript, keyword, classifier_label, classifier_score, audio_path
     FROM alerts
-    WHERE timestamp > NOW() - INTERVAL '12 hours'
-    ORDER BY timestamp DESC
-  `)
-  // Return timestamp as-is from the database
+    WHERE timestamp > NOW() - INTERVAL '12 hours'`;
+  const params: any[] = [];
+
+  if (classifier) {
+    query += ` AND LOWER(classifier_label) = $${params.length + 1}`;
+    params.push(classifier.toLowerCase());
+  }
+  if (feed) {
+    query += ` AND feed = $${params.length + 1}`;
+    params.push(feed);
+  }
+  if (keyword) {
+    query += ` AND (` +
+      `LOWER(keyword) LIKE $${params.length + 1} OR ` +
+      `LOWER(transcript) LIKE $${params.length + 2}` +
+    `)`;
+    params.push(`%${keyword.toLowerCase()}%`, `%${keyword.toLowerCase()}%`);
+  }
+  if (minScore) {
+    query += ` AND classifier_score >= $${params.length + 1}`;
+    params.push(Number(minScore));
+  }
+  if (maxScore) {
+    query += ` AND classifier_score <= $${params.length + 1}`;
+    params.push(Number(maxScore));
+  }
+  query += ` ORDER BY timestamp DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  params.push(limit, offset);
+
+  const { rows } = await pool.query(query, params);
   return rows.map(row => ({
     ...row,
-    timestamp: row.timestamp
-  }))
+    timestamp: row.timestamp,
+    classifier_score: row.classifier_score !== null ? Number(row.classifier_score) : null
+  }));
+}
+
+export async function getDistinctFeeds() {
+  const { rows } = await pool.query('SELECT DISTINCT feed FROM alerts ORDER BY feed ASC');
+  return rows.map(row => row.feed);
 }

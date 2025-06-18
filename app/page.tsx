@@ -2,7 +2,8 @@
 
 import { DateTime, Settings } from 'luxon'
 Settings.defaultZone = 'utc'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from "react";
+import "./styles.css"; // Import default CSS file
 
 interface Alert {
   timestamp: string;
@@ -24,204 +25,277 @@ function formatLocalTime(timestampString: string) {
 }
 
 export default function Home() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 20
-  const totalPages = Math.ceil(alerts.length / pageSize)
-  const paginatedAlerts = alerts.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [classifierFilter, setClassifierFilter] = useState("");
+  const [minScore, setMinScore] = useState("");
+  const [maxScore, setMaxScore] = useState("");
+  const [keywordFilter, setKeywordFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [feeds, setFeeds] = useState<string[]>([]);
+  const [selectedFeed, setSelectedFeed] = useState<string>("");
+
+  // Fetch feeds on mount
+  useEffect(() => {
+    fetch('/api/feeds')
+      .then(res => res.json())
+      .then(setFeeds);
+  }, []);
+
+  // Fetch alerts from API with filters and pagination
+  const fetchAlerts = async (reset = false, pageOverride?: number) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.append('page', String(pageOverride ?? page));
+    params.append('limit', '15');
+    if (classifierFilter) params.append('classifier', classifierFilter);
+    if (keywordFilter) params.append('keyword', keywordFilter);
+    if (minScore) params.append('minScore', minScore);
+    if (maxScore) params.append('maxScore', maxScore);
+    if (selectedFeed) params.append('feed', selectedFeed);
+    const res = await fetch(`/api/alerts?${params.toString()}`);
+    const data = await res.json();
+    if (reset) {
+      setAlerts(data);
+    } else {
+      setAlerts((prev) => [...prev, ...data]);
+    }
+    setLoading(false);
+  };
+
+  // Fetch on page change (infinite scroll)
+  useEffect(() => {
+    fetchAlerts();
+    // eslint-disable-next-line
+  }, [page]);
+
+  // Fetch on filter change (reset to page 1)
+  useEffect(() => {
+    setPage(1);
+    fetchAlerts(true, 1);
+    // eslint-disable-next-line
+  }, [classifierFilter, keywordFilter, minScore, maxScore]);
+
+  // Fetch alerts when selectedFeed changes
+  useEffect(() => {
+    setPage(1);
+    fetchAlerts(true, 1);
+    // eslint-disable-next-line
+  }, [selectedFeed]);
+
+  const handleScroll = () => {
+    if (
+      window.innerHeight + document.documentElement.scrollTop ===
+        document.documentElement.offsetHeight &&
+      !loading
+    ) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
   useEffect(() => {
-    // Request notification permission on mount
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [loading]);
+
+  // Remove filtering and sorting here, just use alerts as is
+  const filteredAlerts = alerts;
+
+  // When a new alert is selected, update the audio element to reload the new source
+  useEffect(() => {
+    const audio = document.querySelector('.audio-container audio') as HTMLAudioElement | null;
+    if (audio) {
+      audio.load();
+    }
+  }, [selectedAlert]);
+
+  // Fetch presigned URL when selectedAlert changes
+  useEffect(() => {
+    if (selectedAlert && selectedAlert.audio_path) {
+      setAudioUrl(null);
+      let key = selectedAlert.audio_path;
+      try {
+        // If audio_path is a full URL, extract the key after the bucket domain
+        const url = new URL(key);
+        // Remove leading slash
+        key = url.pathname.replace(/^\//, '');
+      } catch {
+        // If not a URL, use as is
+      }
+      fetch(`/api/audio?key=${encodeURIComponent(key)}`)
+        .then(res => res.json())
+        .then(data => setAudioUrl(data.url))
+        .catch(() => setAudioUrl(null));
+    } else {
+      setAudioUrl(null);
+    }
+  }, [selectedAlert]);
+
+  // Request notification permission on mount
+  useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
-        Notification.requestPermission()
+        Notification.requestPermission();
       }
     }
+  }, []);
 
-    let lastAlertTimestamp: string | null = null
-    // Initial fetch
-    fetch('/api/alerts')
-      .then(res => res.json())
-      .then(data => {
-        setAlerts(data)
-        if (data.length > 0) lastAlertTimestamp = data[0].timestamp
-      })
-
-    // Poll every 10 seconds for new alerts
-    const interval = setInterval(() => {
-      fetch('/api/alerts')
-        .then(res => res.json())
-        .then(data => {
-          // Detect new alert
-          if (data.length > 0 && data[0].timestamp !== lastAlertTimestamp) {
-            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-              const alert = data[0]
+  // Periodically fetch new alerts and notify
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const params = new URLSearchParams();
+      params.append('page', '1');
+      params.append('limit', '15');
+      if (classifierFilter) params.append('classifier', classifierFilter);
+      if (keywordFilter) params.append('keyword', keywordFilter);
+      if (minScore) params.append('minScore', minScore);
+      if (maxScore) params.append('maxScore', maxScore);
+      if (selectedFeed) params.append('feed', selectedFeed);
+      const res = await fetch(`/api/alerts?${params.toString()}`);
+      const data = await res.json();
+      if (data.length > 0 && (!alerts.length || data[0].timestamp !== alerts[0].timestamp)) {
+        // Prepend only new alerts
+        const newAlerts = (data as Alert[]).filter((a: Alert) => !alerts.some((b: Alert) => b.timestamp === a.timestamp && b.feed === a.feed));
+        if (newAlerts.length > 0) {
+          setAlerts(prev => [...newAlerts, ...prev]);
+          // Show browser notification for each new alert
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            newAlerts.forEach(alert => {
               new Notification('New Police Scanner Alert', {
                 body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
                 icon: '/favicon.ico'
-              })
-            }
-            lastAlertTimestamp = data[0].timestamp
+              });
+            });
           }
-          setAlerts(data)
-        })
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const getS3KeyFromPath = (audioPath: string) => {
-    // If audioPath is a full URL, extract the key after the last '/'
-    try {
-      const url = new URL(audioPath)
-      return decodeURIComponent(url.pathname.replace(/^\//, ''))
-    } catch {
-      // If not a URL, return as is
-      return audioPath
-    }
-  }
-
-  const openModal = async (audioPath: string) => {
-    const key = getS3KeyFromPath(audioPath)
-    const res = await fetch(`/api/audio?key=${encodeURIComponent(key)}`)
-    const data = await res.json()
-    if (data.url) {
-      setAudioUrl(data.url)
-      setShowModal(true)
-    } else {
-      alert('Audio unavailable or failed to load.')
-    }
-  }
+        }
+      }
+    }, 30000); // every 30 seconds
+    return () => clearInterval(interval);
+  }, [classifierFilter, keywordFilter, minScore, maxScore, selectedFeed, alerts]);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%)' }}>
-      <header style={{ padding: '40px 0', background: '#f9fafb', boxShadow: '0 2px 8px rgba(30,58,138,0.04)', position: 'relative', borderBottom: '1px solid #e5e7eb' }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, textAlign: 'center', color: '#22223b', letterSpacing: '0.04em', marginBottom: 0 }}>
-          Police Scanner Alerts
-        </h1>
-        <p style={{ textAlign: 'center', color: '#64748b', marginTop: 8, fontSize: '1.125rem', fontWeight: 500 }}>Live audio & incident feed</p>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #60a5fa, #cbd5e1, #60a5fa)' }}></div>
+    <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+      {/* Header */}
+      <header className="header">
+        <h1>CopScanner Alerts</h1>
       </header>
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '32px 8px' }}>
-        <div style={{ width: '100%', maxWidth: 1200, borderRadius: 24, boxShadow: '0 4px 24px rgba(30,58,138,0.07)', background: 'white', padding: 32, border: '1px solid #e5e7eb' }}>
-          <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#22223b', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ display: 'inline-block', width: 8, height: 8, background: '#38bdf8', borderRadius: '50%', animation: 'pulse 2s infinite' }}></span>
-              Recent Alerts
-            </h2>
-          </div>
-          <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px #cbd5e133' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.97rem' }}>
-              <thead style={{ background: '#f1f5f9', color: '#22223b', borderBottom: '2px solid #e5e7eb' }}>
-                <tr>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Timestamp</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Feed</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Location</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>URL</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Transcript</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Keyword</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Classifier</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'left' }}>Score</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center' }}>Audio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedAlerts.length > 0 ? paginatedAlerts.map((a, i) => (
-                  <tr key={a.timestamp + a.feed + a.location} style={{ background: (i % 2 === 0 ? '#f8fafc' : 'white'), transition: 'background 0.2s' }}>
-                    <td style={{ padding: '8px 16px', whiteSpace: 'nowrap', fontFamily: 'monospace', color: '#334155' }}>
-                      {formatLocalTime(a.timestamp)}
-                    </td>
-                    <td style={{ padding: '8px 16px', color: '#334155' }}>{a.feed}</td>
-                    <td style={{ padding: '8px 16px', color: '#334155' }}>{a.location}</td>
-                    <td style={{ padding: '8px 16px' }}>
-                      <a href={a.source_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}>Feed</a>
-                    </td>
-                    <td style={{ padding: '8px 16px', wordBreak: 'break-word', minWidth: 150, color: '#334155' }}>{a.transcript}</td>
-                    <td style={{ padding: '8px 16px' }}>
-                      <span style={{ display: 'inline-block', background: '#f1f5f9', color: '#0e7490', padding: '2px 8px', borderRadius: 8, fontWeight: 600, border: '1px solid #bae6fd', fontSize: '0.97em' }}>{a.keyword}</span>
-                    </td>
-                    <td style={{ padding: '8px 16px' }}>
-                      <span style={{ display: 'inline-block', background: '#e0e7ef', color: '#2563eb', padding: '2px 8px', borderRadius: 8, fontWeight: 600, border: '1px solid #c7d2fe', fontSize: '0.97em' }}>{a.classifier_label}</span>
-                    </td>
-                    <td style={{ padding: '8px 16px', color: '#2563eb' }}>{a.classifier_score !== null && a.classifier_score !== undefined ? Number(a.classifier_score).toFixed(2) : ''}</td>
-                    <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                      {a.audio_path ? (
-                        <button
-                          type="button"
-                          style={{ padding: '4px 16px', background: 'linear-gradient(90deg, #60a5fa, #2563eb)', color: 'white', borderRadius: 8, boxShadow: '0 2px 8px #60a5fa22', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: '1em', transition: 'background 0.2s' }}
-                          onClick={e => { e.stopPropagation(); openModal(a.audio_path!) }}
-                        >
-                          ▶ Play
-                        </button>
-                      ) : (
-                        <span style={{ color: '#9ca3af' }}>Unavailable</span>
-                      )}
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '32px 16px', color: '#6b7280', fontSize: '1.125rem' }}>
-                      No alerts in the past 12 hours.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24, flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#2563eb', color: currentPage === 1 ? '#94a3b8' : 'white', fontWeight: 600, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '1em' }}
+      <div className="main-container" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        {/* Sidebar */}
+        <aside className="sidebar">
+          <h2>Feed</h2>
+          <nav>
+            <ul>
+              {feeds.map(feed => (
+                <li
+                  key={feed}
+                  className={selectedFeed === feed ? "active" : ""}
+                  onClick={() => {
+                    setSelectedFeed(feed);
+                  }}
+                  style={selectedFeed === feed ? { cursor: 'pointer', background: '#2563eb', color: '#fff', fontWeight: 600, borderLeft: '4px solid #60a5fa', boxShadow: '0 1px 4px #cbd5e133' } : { cursor: 'pointer' }}
                 >
-                  Previous
-                </button>
-                {/* Page Numbers */}
-                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(pageNum => (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 6,
-                      border: '1px solid #cbd5e1',
-                      background: currentPage === pageNum ? '#2563eb' : 'white',
-                      color: currentPage === pageNum ? 'white' : '#2563eb',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      fontSize: '1em',
-                      margin: '0 2px',
-                    }}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#2563eb', color: currentPage === totalPages ? '#94a3b8' : 'white', fontWeight: 600, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '1em' }}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-          {/* Audio Modal */}
-          {showModal && audioUrl && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(30,41,59,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowModal(false)}>
-              <div style={{ background: 'white', borderRadius: 16, padding: 32, minWidth: 320, boxShadow: '0 8px 32px #33415533', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', fontSize: 24, color: '#64748b', cursor: 'pointer' }}>&times;</button>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 16, color: '#22223b' }}>Audio Playback</h3>
-                <audio src={audioUrl} controls autoPlay style={{ width: 280, outline: 'none', borderRadius: 8, marginBottom: 8 }} />
-                <span style={{ color: '#64748b', fontSize: '0.97em' }}>Click outside to close</span>
-              </div>
+                  {feed}
+                </li>
+              ))}
+            </ul>
+            <div className="sidebar-footer">
+              <div>Manage Feed</div>
+              <div>User Management</div>
             </div>
-          )}
-        </div>
-      </main>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="content">
+          <div className="filters" style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', background: 'white', borderBottom: '1px solid #ddd', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search events"
+              value={keywordFilter}
+              onChange={(e) => setKeywordFilter(e.target.value)}
+              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 320, minWidth: 200, fontWeight: 500 }}
+            />
+            <select
+              value={classifierFilter}
+              onChange={(e) => setClassifierFilter(e.target.value)}
+              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', minWidth: 200, width: 200, fontWeight: 500, height: '56px' }}
+            >
+              <option value="">Classifier</option>
+              <option value="violent crime">Violent Crime</option>
+              <option value="non-violent">Non-violent</option>
+              <option value="unrelated">Unrelated</option>
+            </select>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Min Score"
+              value={minScore}
+              onChange={(e) => setMinScore(e.target.value)}
+              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 140, fontWeight: 500 }}
+            />
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Max Score"
+              value={maxScore}
+              onChange={(e) => setMaxScore(e.target.value)}
+              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 140, fontWeight: 500 }}
+            />
+          </div>
+          <div className="alerts-container">
+            {/* Events List */}
+            <section className="alerts-list">
+              {filteredAlerts.map((alert, idx) => (
+                <div
+                  key={alert.timestamp + alert.feed + idx}
+                  className={`alert-item ${selectedAlert?.timestamp === alert.timestamp ? "active" : ""}`}
+                  onClick={() => setSelectedAlert(alert)}
+                  style={selectedAlert?.timestamp === alert.timestamp ? { background: '#e0e7ef', color: '#1e293b', fontWeight: 600, borderLeft: '4px solid #2563eb', boxShadow: '0 1px 4px #cbd5e133' } : {}}
+                >
+                  <p className="alert-title">
+                    {alert.classifier_label}
+                    <span className="alert-score">
+                      {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
+                        ? alert.classifier_score.toFixed(2)
+                        : 'N/A'}
+                    </span>
+                  </p>
+                  <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
+                </div>
+              ))}
+              {loading && <p>Loading...</p>}
+            </section>
+
+            {/* Detail Panel */}
+            <section className="alert-details">
+              {selectedAlert && (
+                <>
+                  <div className="audio-container">
+                    <audio controls>
+                      <source src={audioUrl ?? "#"} type="audio/mpeg" />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                  <div className="alert-transcript">
+                    {selectedAlert.transcript}
+                  </div>
+                  <div className="alert-info">
+                    <p><strong>📍 Location:</strong> {selectedAlert.location}</p>
+                    <p><strong>🔗 URL:</strong> <a href={selectedAlert.source_url} target="_blank" rel="noopener noreferrer">Feed</a></p>
+                    <p><strong>🔍 Keyword:</strong> {selectedAlert.keyword}</p>
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+        </main>
+      </div>
+      {/* Footer */}
+      <footer className="footer" style={{ position: 'fixed', left: 0, bottom: 0, width: '100%', background: 'white', borderTop: '1px solid #ddd', textAlign: 'center', fontSize: '0.875rem', color: '#666', padding: '1rem', zIndex: 100 }}>
+        &copy; 2025 CopScanner Alerts. All rights reserved. | v1.0.0
+      </footer>
     </div>
   )
 }

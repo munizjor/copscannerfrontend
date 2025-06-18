@@ -1,0 +1,154 @@
+/* styles.css */
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f3f4f6;
+  color: #333;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  background: linear-gradient(to right, #2563eb, #4f46e5);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.main-container {
+  display: flex;
+  flex: 1;
+}
+
+.sidebar {
+  width: 250px;
+  background: white;
+  border-right: 1px solid #ddd;
+  padding: 1rem;
+}
+
+.sidebar h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sidebar ul li.active {
+  background: #2563eb;
+  color: white;
+}
+
+.sidebar ul li:hover {
+  background: #f3f4f6;
+}
+
+.sidebar-footer {
+  margin-top: 2rem;
+  border-top: 1px solid #ddd;
+  padding-top: 1rem;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+
+.alerts-container {
+  display: flex;
+  flex: 1;
+}
+
+.alerts-list {
+  width: 300px;
+  background: white;
+  border-right: 1px solid #ddd;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.alert-item {
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.alert-item.active {
+  background: #2563eb;
+  color: white;
+}
+
+.alert-item:hover {
+  background: #f3f4f6;
+}
+
+.alert-title {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.alert-score {
+  background: #ddd;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.alert-timestamp {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.alert-details {
+  flex: 1;
+  padding: 1rem;
+  background: white;
+}
+
+.audio-container {
+  margin-bottom: 1rem;
+}
+
+.alert-transcript {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.alert-info p {
+  margin: 0.5rem 0;
+}
+
+.footer {
+  background: white;
+  text-align: center;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  font-size: 0.875rem;
+  color: #666;
+}
