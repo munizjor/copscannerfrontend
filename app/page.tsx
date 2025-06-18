@@ -41,7 +41,10 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/feeds')
       .then(res => res.json())
-      .then(setFeeds)
+      .then(data => {
+        if (!Array.isArray(data)) data = [];
+        setFeeds(data);
+      })
       .catch(err => {
         console.error('Failed to fetch feeds:', err);
         setFeeds([]);
@@ -59,10 +62,11 @@ export default function Home() {
     if (minScore) params.append('minScore', minScore);
     if (maxScore) params.append('maxScore', maxScore);
     if (selectedFeed) params.append('feed', selectedFeed);
-    let data = [];
+    let data: Alert[] = [];
     try {
       const res = await fetch(`/api/alerts?${params.toString()}`);
       data = await res.json();
+      if (!Array.isArray(data)) data = [];
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
       data = [];
@@ -197,7 +201,7 @@ export default function Home() {
           <h2>Feed</h2>
           <nav>
             <ul>
-              {feeds.map(feed => (
+              {Array.isArray(feeds) && feeds.map(feed => (
                 <li
                   key={feed}
                   className={selectedFeed === feed ? "active" : ""}
