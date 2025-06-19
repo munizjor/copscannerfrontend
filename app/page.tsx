@@ -3,7 +3,8 @@
 import { DateTime, Settings } from 'luxon'
 Settings.defaultZone = 'utc'
 import React, { useEffect, useState } from "react";
-import "./styles.css"; // Import default CSS file
+import "./styles.css";
+import "./responsive.css";
 
 interface Alert {
   timestamp: string;
@@ -36,6 +37,7 @@ export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [feeds, setFeeds] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<string>("");
+  const [hasMore, setHasMore] = useState(true);
 
   // Fetch feeds on mount
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function Home() {
     } else {
       setAlerts((prev) => [...prev, ...data]);
     }
+    setHasMore(data.length === 15);
     setLoading(false);
   };
 
@@ -101,9 +104,10 @@ export default function Home() {
 
   const handleScroll = () => {
     if (
-      window.innerHeight + document.documentElement.scrollTop ===
-        document.documentElement.offsetHeight &&
-      !loading
+      window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100 &&
+      !loading &&
+      hasMore
     ) {
       setPage((prev) => prev + 1);
     }
@@ -119,11 +123,11 @@ export default function Home() {
 
   // When a new alert is selected, update the audio element to reload the new source
   useEffect(() => {
-    const audio = document.querySelector('.audio-container audio') as HTMLAudioElement | null;
+    const audio = document.querySelector('.audio-container audio, .audio-container video') as HTMLMediaElement | null;
     if (audio) {
       audio.load();
     }
-  }, [selectedAlert]);
+  }, [selectedAlert, audioUrl]);
 
   // Fetch presigned URL when selectedAlert changes
   useEffect(() => {
@@ -131,17 +135,24 @@ export default function Home() {
       setAudioUrl(null);
       let key = selectedAlert.audio_path;
       try {
-        // If audio_path is a full URL, extract the key after the bucket domain
+        // If audio_path is a full URL, use only the last path component (filename)
         const url = new URL(key);
-        // Remove leading slash
-        key = url.pathname.replace(/^\//, '');
+        key = url.pathname.split('/').pop() || '';
       } catch {
         // If not a URL, use as is
       }
+      // Remove alert_audio/ prefix if present
+      if (key.startsWith('alert_audio/')) {
+        key = key.replace(/^alert_audio\//, '');
+      }
       fetch(`/api/audio?key=${encodeURIComponent(key)}`)
         .then(res => res.json())
-        .then(data => setAudioUrl(data.url))
-        .catch(() => setAudioUrl(null));
+        .then(data => {
+          setAudioUrl(data.url)
+        })
+        .catch(() => {
+          setAudioUrl(null);
+        });
     } else {
       setAudioUrl(null);
     }
@@ -214,10 +225,6 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-            <div className="sidebar-footer">
-              <div>Manage Feed</div>
-              <div>User Management</div>
-            </div>
           </nav>
         </aside>
 
@@ -258,9 +265,13 @@ export default function Home() {
               style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 140, fontWeight: 500 }}
             />
           </div>
-          <div className="alerts-container">
+          <div className="alerts-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
             {/* Events List */}
-            <section className="alerts-list">
+            <section
+              className="alerts-list"
+              style={{ flex: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 120px)', minWidth: 350 }}
+              onScroll={handleScroll}
+            >
               {filteredAlerts.map((alert, idx) => (
                 <div
                   key={alert.timestamp + alert.feed + idx}
@@ -287,10 +298,10 @@ export default function Home() {
               {selectedAlert && (
                 <>
                   <div className="audio-container">
-                    <audio controls>
-                      <source src={audioUrl ?? "#"} type="audio/mpeg" />
+                    <video controls autoPlay style={{ width: '100%', height: 90 }} {...{ name: "media" }}>
+                      <source src={audioUrl ?? "#"} type="audio/wav" />
                       Your browser does not support the audio element.
-                    </audio>
+                    </video>
                   </div>
                   <div className="alert-transcript">
                     {selectedAlert.transcript}

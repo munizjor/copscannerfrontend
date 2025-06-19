@@ -21,32 +21,35 @@ export async function getRecentAlerts({ limit = 15, offset = 0, classifier = '',
   feed?: string
 } = {}) {
   let query = `SELECT timestamp, feed, location, source_url, transcript, keyword, classifier_label, classifier_score, audio_path
-    FROM alerts
-    WHERE timestamp > NOW() - INTERVAL '12 hours'`;
+    FROM alerts`;
   const params: any[] = [];
+  let whereClauses: string[] = [];
 
   if (classifier) {
-    query += ` AND LOWER(classifier_label) = $${params.length + 1}`;
+    whereClauses.push(`LOWER(classifier_label) = $${params.length + 1}`);
     params.push(classifier.toLowerCase());
   }
   if (feed) {
-    query += ` AND feed = $${params.length + 1}`;
+    whereClauses.push(`feed = $${params.length + 1}`);
     params.push(feed);
   }
   if (keyword) {
-    query += ` AND (` +
+    whereClauses.push(`(` +
       `LOWER(keyword) LIKE $${params.length + 1} OR ` +
       `LOWER(transcript) LIKE $${params.length + 2}` +
-    `)`;
+    `)`);
     params.push(`%${keyword.toLowerCase()}%`, `%${keyword.toLowerCase()}%`);
   }
   if (minScore) {
-    query += ` AND classifier_score >= $${params.length + 1}`;
+    whereClauses.push(`classifier_score >= $${params.length + 1}`);
     params.push(Number(minScore));
   }
   if (maxScore) {
-    query += ` AND classifier_score <= $${params.length + 1}`;
+    whereClauses.push(`classifier_score <= $${params.length + 1}`);
     params.push(Number(maxScore));
+  }
+  if (whereClauses.length > 0) {
+    query += ' WHERE ' + whereClauses.join(' AND ');
   }
   query += ` ORDER BY timestamp DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
