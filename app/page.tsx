@@ -38,6 +38,7 @@ export default function Home() {
   const [feeds, setFeeds] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<string>("");
   const [hasMore, setHasMore] = useState(true);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
   // Fetch feeds on mount
   useEffect(() => {
@@ -230,7 +231,10 @@ export default function Home() {
 
         {/* Main Content */}
         <main className="content">
-          <div className="filters" style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', background: 'white', borderBottom: '1px solid #ddd', alignItems: 'center' }}>
+          <div
+            className="filters"
+            style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', background: 'white', borderBottom: '1px solid #ddd', alignItems: 'center' }}
+          >
             <input
               type="text"
               placeholder="Search events"
