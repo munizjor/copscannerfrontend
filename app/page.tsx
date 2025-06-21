@@ -245,7 +245,7 @@ export default function Home() {
             <select
               value={classifierFilter}
               onChange={(e) => setClassifierFilter(e.target.value)}
-              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', minWidth: 200, width: 200, fontWeight: 500, height: '56px' }}
+              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', minWidth: 200, width: 200, fontWeight: 500, height: '48.5px' }}
             >
               <option value="">Classifier</option>
               <option value="violent crime">Violent Crime</option>
@@ -258,7 +258,15 @@ export default function Home() {
               placeholder="Min Score"
               value={minScore}
               onChange={(e) => setMinScore(e.target.value)}
-              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 140, fontWeight: 500 }}
+              style={{
+                fontSize: '1.25rem',
+                padding: '0.75rem 1.25rem',
+                borderRadius: 8,
+                border: '1px solid #bbb',
+                width: 140,
+                fontWeight: 500,
+                display: 'none', // Hide the input using CSS
+              }}
             />
             <input
               type="number"
@@ -266,7 +274,15 @@ export default function Home() {
               placeholder="Max Score"
               value={maxScore}
               onChange={(e) => setMaxScore(e.target.value)}
-              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 140, fontWeight: 500 }}
+              style={{
+                fontSize: '1.25rem',
+                padding: '0.75rem 1.25rem',
+                borderRadius: 8,
+                border: '1px solid #bbb',
+                width: 140,
+                fontWeight: 500,
+                display: 'none', // Hide the input using CSS
+              }}
             />
           </div>
           <div className="alerts-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
@@ -281,7 +297,17 @@ export default function Home() {
                   key={alert.timestamp + alert.feed + idx}
                   className={`alert-item ${selectedAlert?.timestamp === alert.timestamp ? "active" : ""}`}
                   onClick={() => setSelectedAlert(alert)}
-                  style={selectedAlert?.timestamp === alert.timestamp ? { background: '#e0e7ef', color: '#1e293b', fontWeight: 600, borderLeft: '4px solid #2563eb', boxShadow: '0 1px 4px #cbd5e133' } : {}}
+                  style={
+                    selectedAlert?.timestamp === alert.timestamp
+                      ? {
+                          background: '#e0e7ef',
+                          color: '#1e293b',
+                          fontWeight: 600,
+                          borderLeft: '4px solid #2563eb',
+                          boxShadow: '0 1px 4px #cbd5e133',
+                        }
+                      : {}
+                  }
                 >
                   <p className="alert-title">
                     {alert.classifier_label}
@@ -290,6 +316,9 @@ export default function Home() {
                         ? alert.classifier_score.toFixed(2)
                         : 'N/A'}
                     </span>
+                  </p>
+                  <p className="alert-snippet">
+                    {alert.transcript.slice(0, 50)}...
                   </p>
                   <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
                 </div>
@@ -302,9 +331,12 @@ export default function Home() {
               {selectedAlert && (
                 <>
                   <div className="audio-container">
-                    <video controls autoPlay style={{ width: '100%', height: 90 }} {...{ name: "media" }}>
+                    <video controls style={{ width: '100%', height: 90 }} {...{ name: "media" }}>
                       <source src={audioUrl ?? "#"} type="audio/wav" />
-                      Your browser does not support the audio element.
+                      <audio controls>
+                        <source src={audioUrl ?? "#"} type="audio/wav" />
+                        Your browser does not support the audio or video element.
+                      </audio>
                     </video>
                   </div>
                   <div className="alert-transcript">
