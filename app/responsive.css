@@ -14,11 +14,9 @@
     flex-direction: column;
   }
   .alerts-list {
-    width: 100%;
-    border-right: none;
     border-bottom: 1px solid #ddd;
+    border-right: none;
     min-width: 0;
-    max-height: 300px;
   }
   .alert-details {
     padding: 0.5rem;
@@ -54,9 +52,7 @@
   }
   .alerts-list {
     padding: 0.25rem;
-    max-height: 100px;
     min-height: 60px;
-    overflow-y: auto;
     margin-bottom: 0.25rem;
     width: 100%;
   }
@@ -140,7 +136,7 @@
   /* Ensure alert details panel is always visible */
   .alert-details {
     position: fixed;
-    bottom: 0;
+    bottom: 25px;
     left: 0;
     width: 100%;
     z-index: 10;
@@ -148,6 +144,7 @@
     border-top: 1px solid #ddd;
     padding: 0.5rem;
     box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    display: block;
   }
 
   .alerts-container {
@@ -168,5 +165,29 @@
     background: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
+  }
+
+  .filter-select {
+    height: 27.5px;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .alerts-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .alert-details {
+    position: fixed;
+    bottom: 50px;
+    left: 0;
+    width: 100%;
+    z-index: 10;
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 0.5rem;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
   }
 }
