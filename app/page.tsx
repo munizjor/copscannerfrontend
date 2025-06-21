@@ -6,6 +6,9 @@ import React, { useEffect, useState } from "react";
 import "./styles.css";
 import "./responsive.css";
 
+const PAGE_SIZE = 15;
+const VIDEO_HEIGHT = 90;
+
 interface Alert {
   timestamp: string;
   feed: string;
@@ -38,7 +41,7 @@ export default function Home() {
   const [feeds, setFeeds] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<string>("");
   const [hasMore, setHasMore] = useState(true);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch feeds on mount
   useEffect(() => {
@@ -47,9 +50,10 @@ export default function Home() {
       .then(data => {
         if (!Array.isArray(data)) data = [];
         setFeeds(data);
+        setError(null);
       })
       .catch(err => {
-        console.error('Failed to fetch feeds:', err);
+        setError('Failed to fetch feeds. Please try again later.');
         setFeeds([]);
       });
   }, []);
@@ -57,9 +61,10 @@ export default function Home() {
   // Defensive fetch for alerts
   const fetchAlerts = async (reset = false, pageOverride?: number) => {
     setLoading(true);
+    setError(null);
     const params = new URLSearchParams();
     params.append('page', String(pageOverride ?? page));
-    params.append('limit', '15');
+    params.append('limit', String(PAGE_SIZE));
     if (classifierFilter) params.append('classifier', classifierFilter);
     if (keywordFilter) params.append('keyword', keywordFilter);
     if (minScore) params.append('minScore', minScore);
@@ -71,7 +76,7 @@ export default function Home() {
       data = await res.json();
       if (!Array.isArray(data)) data = [];
     } catch (err) {
-      console.error('Failed to fetch alerts:', err);
+      setError('Failed to fetch alerts. Please try again later.');
       data = [];
     }
     if (reset) {
@@ -79,7 +84,7 @@ export default function Home() {
     } else {
       setAlerts((prev) => [...prev, ...data]);
     }
-    setHasMore(data.length === 15);
+    setHasMore(data.length === PAGE_SIZE);
     setLoading(false);
   };
 
@@ -103,21 +108,17 @@ export default function Home() {
     // eslint-disable-next-line
   }, [selectedFeed]);
 
-  const handleScroll = () => {
+  // Update handleScroll to use the event's target (alerts-list)
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const target = e.currentTarget;
     if (
-      window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 100 &&
+      target.scrollHeight - target.scrollTop - target.clientHeight < 100 &&
       !loading &&
       hasMore
     ) {
       setPage((prev) => prev + 1);
     }
   };
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loading]);
 
   // Remove filtering and sorting here, just use alerts as is
   const filteredAlerts = alerts;
@@ -201,15 +202,99 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [classifierFilter, keywordFilter, minScore, maxScore, selectedFeed, alerts]);
 
+  // AlertCard component for each alert in the list
+  interface AlertCardProps {
+    alert: Alert;
+    isSelected: boolean;
+    onClick: () => void;
+  }
+  function AlertCard({ alert, isSelected, onClick }: AlertCardProps) {
+    return (
+      <div
+        className={`alert-item${isSelected ? " active" : ""}`}
+        onClick={onClick}
+        role="button"
+        aria-pressed={isSelected}
+        aria-label={`Alert: ${alert.classifier_label}, ${formatLocalTime(alert.timestamp)}`}
+        tabIndex={0}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        style={
+          isSelected
+            ? {
+                background: '#e0e7ef',
+                color: '#1e293b',
+                fontWeight: 600,
+                borderLeft: '4px solid #2563eb',
+                boxShadow: '0 1px 4px #cbd5e133',
+              }
+            : {}
+        }
+      >
+        <p className="alert-title">
+          {alert.classifier_label}
+          <span className="alert-score">
+            {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
+              ? alert.classifier_score.toFixed(2)
+              : 'N/A'}
+          </span>
+        </p>
+        <p className="alert-snippet">
+          {alert.transcript.slice(0, 50)}...
+        </p>
+        <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
+      </div>
+    );
+  }
+
+  // AlertDetail component for the right panel
+  interface AlertDetailProps {
+    alert: Alert;
+    audioUrl: string | null;
+  }
+  function AlertDetail({ alert, audioUrl }: AlertDetailProps) {
+    if (!alert) return null;
+    return (
+      <>
+        <div className="audio-container">
+          <video controls style={{ width: '100%', height: VIDEO_HEIGHT }} {...{ name: "media" }}>
+            <source src={audioUrl ?? "#"} type="audio/wav" />
+            <audio controls>
+              <source src={audioUrl ?? "#"} type="audio/wav" />
+              Your browser does not support the audio or video element.
+            </audio>
+          </video>
+        </div>
+        <div className="alert-transcript">
+          {alert.transcript}
+        </div>
+        <div className="alert-info">
+          <p><strong>📍 Location:</strong> {alert.location}</p>
+          <p><strong>🔗 URL:</strong> <a href={alert.source_url} target="_blank" rel="noopener noreferrer">Feed</a></p>
+          <p><strong>🔍 Keyword:</strong> {alert.keyword}</p>
+        </div>
+      </>
+    );
+  }
+
   return (
-    <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+    <div className="app-container">
       {/* Header */}
       <header className="header">
         <h1>CopScanner Alerts</h1>
       </header>
-      <div className="main-container" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
+      <div className="main-container">
         {/* Sidebar */}
-        <aside className="sidebar">
+        <aside className="sidebar" aria-label="Feed selection">
           <h2>Feed</h2>
           <nav>
             <ul>
@@ -220,7 +305,6 @@ export default function Home() {
                   onClick={() => {
                     setSelectedFeed(feed);
                   }}
-                  style={selectedFeed === feed ? { cursor: 'pointer', background: '#2563eb', color: '#fff', fontWeight: 600, borderLeft: '4px solid #60a5fa', boxShadow: '0 1px 4px #cbd5e133' } : { cursor: 'pointer' }}
                 >
                   {feed}
                 </li>
@@ -230,22 +314,21 @@ export default function Home() {
         </aside>
 
         {/* Main Content */}
-        <main className="content">
-          <div
-            className="filters"
-            style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', background: 'white', borderBottom: '1px solid #ddd', alignItems: 'center' }}
-          >
+        <main className="content" aria-label="Main content">
+          <div className="filters">
             <input
               type="text"
               placeholder="Search events"
               value={keywordFilter}
               onChange={(e) => setKeywordFilter(e.target.value)}
-              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', width: 320, minWidth: 200, fontWeight: 500 }}
+              className="filter-input"
+              aria-label="Search events"
             />
             <select
               value={classifierFilter}
               onChange={(e) => setClassifierFilter(e.target.value)}
-              style={{ fontSize: '1.25rem', padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #bbb', minWidth: 200, width: 200, fontWeight: 500, height: '48.5px' }}
+              className="filter-select"
+              aria-label="Classifier filter"
             >
               <option value="">Classifier</option>
               <option value="violent crime">Violent Crime</option>
@@ -258,15 +341,8 @@ export default function Home() {
               placeholder="Min Score"
               value={minScore}
               onChange={(e) => setMinScore(e.target.value)}
-              style={{
-                fontSize: '1.25rem',
-                padding: '0.75rem 1.25rem',
-                borderRadius: 8,
-                border: '1px solid #bbb',
-                width: 140,
-                fontWeight: 500,
-                display: 'none', // Hide the input using CSS
-              }}
+              className="filter-min-score"
+              style={{ display: 'none' }}
             />
             <input
               type="number"
@@ -274,54 +350,23 @@ export default function Home() {
               placeholder="Max Score"
               value={maxScore}
               onChange={(e) => setMaxScore(e.target.value)}
-              style={{
-                fontSize: '1.25rem',
-                padding: '0.75rem 1.25rem',
-                borderRadius: 8,
-                border: '1px solid #bbb',
-                width: 140,
-                fontWeight: 500,
-                display: 'none', // Hide the input using CSS
-              }}
+              className="filter-max-score"
+              style={{ display: 'none' }}
             />
           </div>
-          <div className="alerts-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+          <div className="alerts-container">
             {/* Events List */}
             <section
               className="alerts-list"
-              style={{ flex: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 120px)', minWidth: 350 }}
               onScroll={handleScroll}
             >
               {filteredAlerts.map((alert, idx) => (
-                <div
+                <AlertCard
                   key={alert.timestamp + alert.feed + idx}
-                  className={`alert-item ${selectedAlert?.timestamp === alert.timestamp ? "active" : ""}`}
+                  alert={alert}
+                  isSelected={selectedAlert?.timestamp === alert.timestamp}
                   onClick={() => setSelectedAlert(alert)}
-                  style={
-                    selectedAlert?.timestamp === alert.timestamp
-                      ? {
-                          background: '#e0e7ef',
-                          color: '#1e293b',
-                          fontWeight: 600,
-                          borderLeft: '4px solid #2563eb',
-                          boxShadow: '0 1px 4px #cbd5e133',
-                        }
-                      : {}
-                  }
-                >
-                  <p className="alert-title">
-                    {alert.classifier_label}
-                    <span className="alert-score">
-                      {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
-                        ? alert.classifier_score.toFixed(2)
-                        : 'N/A'}
-                    </span>
-                  </p>
-                  <p className="alert-snippet">
-                    {alert.transcript.slice(0, 50)}...
-                  </p>
-                  <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
-                </div>
+                />
               ))}
               {loading && <p>Loading...</p>}
             </section>
@@ -329,32 +374,14 @@ export default function Home() {
             {/* Detail Panel */}
             <section className="alert-details">
               {selectedAlert && (
-                <>
-                  <div className="audio-container">
-                    <video controls style={{ width: '100%', height: 90 }} {...{ name: "media" }}>
-                      <source src={audioUrl ?? "#"} type="audio/wav" />
-                      <audio controls>
-                        <source src={audioUrl ?? "#"} type="audio/wav" />
-                        Your browser does not support the audio or video element.
-                      </audio>
-                    </video>
-                  </div>
-                  <div className="alert-transcript">
-                    {selectedAlert.transcript}
-                  </div>
-                  <div className="alert-info">
-                    <p><strong>📍 Location:</strong> {selectedAlert.location}</p>
-                    <p><strong>🔗 URL:</strong> <a href={selectedAlert.source_url} target="_blank" rel="noopener noreferrer">Feed</a></p>
-                    <p><strong>🔍 Keyword:</strong> {selectedAlert.keyword}</p>
-                  </div>
-                </>
+                <AlertDetail alert={selectedAlert} audioUrl={audioUrl} />
               )}
             </section>
           </div>
         </main>
       </div>
       {/* Footer */}
-      <footer className="footer" style={{ position: 'fixed', left: 0, bottom: 0, width: '100%', background: 'white', borderTop: '1px solid #ddd', textAlign: 'center', fontSize: '0.875rem', color: '#666', padding: '1rem', zIndex: 100 }}>
+      <footer className="footer">
         &copy; 2025 CopScanner Alerts. All rights reserved. | v1.0.0
       </footer>
     </div>
