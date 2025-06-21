@@ -5,32 +5,19 @@ Settings.defaultZone = 'utc'
 import React, { useEffect, useState } from "react";
 import "./styles.css";
 import "./responsive.css";
+import { showNotification, requestNotificationPermission } from "../lib/notifications";
+import { fetchFeeds, fetchAlerts, fetchAudioUrl } from "../lib/api";
+import { formatLocalTime } from "../lib/date";
+import { filterAlerts, sortAlerts, Alert as AlertType } from "../lib/alerts";
+import { AlertCard } from "../components/AlertCard";
+import { AlertDetail } from "../components/AlertDetail";
 
 const PAGE_SIZE = 15;
 const VIDEO_HEIGHT = 90;
 
-interface Alert {
-  timestamp: string;
-  feed: string;
-  location: string;
-  source_url: string;
-  transcript: string;
-  keyword: string;
-  classifier_label: string;
-  classifier_score: number;
-  audio_path: string | null;
-}
-
-function formatLocalTime(timestampString: string) {
-  // Parse as UTC, then convert to America/New_York and format
-  return DateTime.fromSQL(timestampString, { zone: 'utc' })
-    .setZone('America/New_York')
-    .toFormat('M/d/yyyy, h:mm:ss a')
-}
-
 export default function Home() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [alerts, setAlerts] = useState<AlertType[]>([]);
+  const [selectedAlert, setSelectedAlert] = useState<AlertType | null>(null);
   const [classifierFilter, setClassifierFilter] = useState("");
   const [minScore, setMinScore] = useState("");
   const [maxScore, setMaxScore] = useState("");
@@ -45,10 +32,8 @@ export default function Home() {
 
   // Fetch feeds on mount
   useEffect(() => {
-    fetch('/api/feeds')
-      .then(res => res.json())
+    fetchFeeds()
       .then(data => {
-        if (!Array.isArray(data)) data = [];
         setFeeds(data);
         setError(null);
       })
@@ -59,52 +44,49 @@ export default function Home() {
   }, []);
 
   // Defensive fetch for alerts
-  const fetchAlerts = async (reset = false, pageOverride?: number) => {
+  const handleFetchAlerts = async (reset = false, pageOverride?: number) => {
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams();
-    params.append('page', String(pageOverride ?? page));
-    params.append('limit', String(PAGE_SIZE));
-    if (classifierFilter) params.append('classifier', classifierFilter);
-    if (keywordFilter) params.append('keyword', keywordFilter);
-    if (minScore) params.append('minScore', minScore);
-    if (maxScore) params.append('maxScore', maxScore);
-    if (selectedFeed) params.append('feed', selectedFeed);
-    let data: Alert[] = [];
     try {
-      const res = await fetch(`/api/alerts?${params.toString()}`);
-      data = await res.json();
-      if (!Array.isArray(data)) data = [];
+      const data = await fetchAlerts({
+        page: pageOverride ?? page,
+        pageSize: PAGE_SIZE,
+        classifierFilter,
+        keywordFilter,
+        minScore,
+        maxScore,
+        selectedFeed
+      });
+      if (reset) {
+        setAlerts(data);
+      } else {
+        setAlerts((prev) => [...prev, ...data]);
+      }
+      setHasMore(data.length === PAGE_SIZE);
     } catch (err) {
       setError('Failed to fetch alerts. Please try again later.');
-      data = [];
+      if (reset) setAlerts([]);
     }
-    if (reset) {
-      setAlerts(data);
-    } else {
-      setAlerts((prev) => [...prev, ...data]);
-    }
-    setHasMore(data.length === PAGE_SIZE);
     setLoading(false);
   };
 
   // Fetch on page change (infinite scroll)
   useEffect(() => {
-    fetchAlerts();
+    handleFetchAlerts();
     // eslint-disable-next-line
   }, [page]);
 
   // Fetch on filter change (reset to page 1)
   useEffect(() => {
     setPage(1);
-    fetchAlerts(true, 1);
+    handleFetchAlerts(true, 1);
     // eslint-disable-next-line
   }, [classifierFilter, keywordFilter, minScore, maxScore]);
 
   // Fetch alerts when selectedFeed changes
   useEffect(() => {
     setPage(1);
-    fetchAlerts(true, 1);
+    handleFetchAlerts(true, 1);
     // eslint-disable-next-line
   }, [selectedFeed]);
 
@@ -121,7 +103,13 @@ export default function Home() {
   };
 
   // Remove filtering and sorting here, just use alerts as is
-  const filteredAlerts = alerts;
+  const filteredAlerts = sortAlerts(filterAlerts(alerts, {
+    keywordFilter,
+    classifierFilter,
+    minScore,
+    maxScore,
+    selectedFeed
+  }));
 
   // When a new alert is selected, update the audio element to reload the new source
   useEffect(() => {
@@ -135,26 +123,9 @@ export default function Home() {
   useEffect(() => {
     if (selectedAlert && selectedAlert.audio_path) {
       setAudioUrl(null);
-      let key = selectedAlert.audio_path;
-      try {
-        // If audio_path is a full URL, use only the last path component (filename)
-        const url = new URL(key);
-        key = url.pathname.split('/').pop() || '';
-      } catch {
-        // If not a URL, use as is
-      }
-      // Remove alert_audio/ prefix if present
-      if (key.startsWith('alert_audio/')) {
-        key = key.replace(/^alert_audio\//, '');
-      }
-      fetch(`/api/audio?key=${encodeURIComponent(key)}`)
-        .then(res => res.json())
-        .then(data => {
-          setAudioUrl(data.url)
-        })
-        .catch(() => {
-          setAudioUrl(null);
-        });
+      fetchAudioUrl(selectedAlert.audio_path)
+        .then(url => setAudioUrl(url))
+        .catch(() => setAudioUrl(null));
     } else {
       setAudioUrl(null);
     }
@@ -162,11 +133,7 @@ export default function Home() {
 
   // Request notification permission on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
+    requestNotificationPermission();
   }, []);
 
   // Periodically fetch new alerts and notify
@@ -184,102 +151,22 @@ export default function Home() {
       const data = await res.json();
       if (data.length > 0 && (!alerts.length || data[0].timestamp !== alerts[0].timestamp)) {
         // Prepend only new alerts
-        const newAlerts = (data as Alert[]).filter((a: Alert) => !alerts.some((b: Alert) => b.timestamp === a.timestamp && b.feed === a.feed));
+        const newAlerts = (data as AlertType[]).filter((a: AlertType) => !alerts.some((b: AlertType) => b.timestamp === a.timestamp && b.feed === a.feed));
         if (newAlerts.length > 0) {
           setAlerts(prev => [...newAlerts, ...prev]);
           // Show browser notification for each new alert
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            newAlerts.forEach(alert => {
-              new Notification('New Police Scanner Alert', {
-                body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
-                icon: '/favicon.ico'
-              });
+          newAlerts.forEach(alert => {
+            console.log('Sending notification for alert:', alert);
+            showNotification('New Police Scanner Alert', {
+              body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
+              icon: '/favicon.ico'
             });
-          }
+          });
         }
       }
     }, 30000); // every 30 seconds
     return () => clearInterval(interval);
   }, [classifierFilter, keywordFilter, minScore, maxScore, selectedFeed, alerts]);
-
-  // AlertCard component for each alert in the list
-  interface AlertCardProps {
-    alert: Alert;
-    isSelected: boolean;
-    onClick: () => void;
-  }
-  function AlertCard({ alert, isSelected, onClick }: AlertCardProps) {
-    return (
-      <div
-        className={`alert-item${isSelected ? " active" : ""}`}
-        onClick={onClick}
-        role="button"
-        aria-pressed={isSelected}
-        aria-label={`Alert: ${alert.classifier_label}, ${formatLocalTime(alert.timestamp)}`}
-        tabIndex={0}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-        style={
-          isSelected
-            ? {
-                background: '#e0e7ef',
-                color: '#1e293b',
-                fontWeight: 600,
-                borderLeft: '4px solid #2563eb',
-                boxShadow: '0 1px 4px #cbd5e133',
-              }
-            : {}
-        }
-      >
-        <p className="alert-title">
-          {alert.classifier_label}
-          <span className="alert-score">
-            {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
-              ? alert.classifier_score.toFixed(2)
-              : 'N/A'}
-          </span>
-        </p>
-        <p className="alert-snippet">
-          {alert.transcript.slice(0, 50)}...
-        </p>
-        <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
-      </div>
-    );
-  }
-
-  // AlertDetail component for the right panel
-  interface AlertDetailProps {
-    alert: Alert;
-    audioUrl: string | null;
-  }
-  function AlertDetail({ alert, audioUrl }: AlertDetailProps) {
-    if (!alert) return null;
-    return (
-      <>
-        <div className="audio-container">
-          <video controls style={{ width: '100%', height: VIDEO_HEIGHT }} {...{ name: "media" }}>
-            <source src={audioUrl ?? "#"} type="audio/wav" />
-            <audio controls>
-              <source src={audioUrl ?? "#"} type="audio/wav" />
-              Your browser does not support the audio or video element.
-            </audio>
-          </video>
-        </div>
-        <div className="alert-transcript">
-          {alert.transcript}
-        </div>
-        <div className="alert-info">
-          <p><strong>📍 Location:</strong> {alert.location}</p>
-          <p><strong>🔗 URL:</strong> <a href={alert.source_url} target="_blank" rel="noopener noreferrer">Feed</a></p>
-          <p><strong>🔍 Keyword:</strong> {alert.keyword}</p>
-        </div>
-      </>
-    );
-  }
 
   return (
     <div className="app-container">
@@ -374,7 +261,7 @@ export default function Home() {
             {/* Detail Panel */}
             <section className="alert-details">
               {selectedAlert && (
-                <AlertDetail alert={selectedAlert} audioUrl={audioUrl} />
+                <AlertDetail alert={selectedAlert} audioUrl={audioUrl} onClose={() => setSelectedAlert(null)} />
               )}
             </section>
           </div>
