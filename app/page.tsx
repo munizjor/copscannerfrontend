@@ -239,7 +239,12 @@ export default function Home() {
                   key={feed}
                   className={selectedFeed === feed ? "active" : ""}
                   onClick={() => {
-                    setSelectedFeed(feed);
+                    // If clicking on the already selected feed, deselect it
+                    if (selectedFeed === feed) {
+                      setSelectedFeed("");
+                    } else {
+                      setSelectedFeed(feed);
+                    }
                   }}
                 >
                   {feed}
