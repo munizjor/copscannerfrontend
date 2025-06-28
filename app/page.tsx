@@ -182,13 +182,17 @@ export default function Home() {
         const newAlerts = (data as AlertType[]).filter((a: AlertType) => !alerts.some((b: AlertType) => b.timestamp === a.timestamp && b.feed === a.feed));
         if (newAlerts.length > 0) {
           setAlerts(prev => [...newAlerts, ...prev]);
-          // Show browser notification for each new alert
+          // Show browser notification only for violent crime alerts with score >= 0.5
           newAlerts.forEach(alert => {
-            console.log('Sending notification for alert:', alert);
-            showNotification('New Police Scanner Alert', {
-              body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
-              icon: '/favicon.ico'
-            });
+            if (alert.classifier_label?.toLowerCase().includes('violent') && 
+                typeof alert.classifier_score === 'number' && 
+                alert.classifier_score >= 0.5) {
+              console.log('Sending notification for violent crime alert:', alert);
+              showNotification('New Violent Crime Alert', {
+                body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
+                icon: '/favicon.ico'
+              });
+            }
           });
         }
       }
@@ -211,9 +215,7 @@ export default function Home() {
       {/* Header */}
       <header className="header">
         <h1>Sherlock IQ</h1>
-        <button onClick={handleLogout} style={{ position: 'absolute', top: 16, right: 24, background: '#eee', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontWeight: 500 }}>
-          Logout
-        </button>
+        {/* Logout button moved to sidebar */}
       </header>
       {error && (
         <div className="error-message">
@@ -238,6 +240,14 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+            <div style={{ marginTop: '2rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
+              <button
+                onClick={handleLogout}
+                style={{ width: '100%', background: '#eee', border: 'none', borderRadius: 4, padding: '10px 0', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Logout
+              </button>
+            </div>
           </nav>
         </aside>
 
