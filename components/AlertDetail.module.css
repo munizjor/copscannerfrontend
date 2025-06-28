@@ -35,6 +35,11 @@
   background: #f3f4f6;
 }
 
+.audio {
+  width: 100%;
+  display: block;
+}
+
 .alertTranscript {
   margin-bottom: 16px;
   font-size: 1.05rem;

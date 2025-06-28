@@ -42,13 +42,9 @@ export function AlertDetail({ alert, audioUrl, onClose }: AlertDetailProps) {
         ×
       </button>
       <div className={styles.audioContainer}>
-        <video controls className={styles.video}>
-          <source src={audioUrl ?? "#"} type="audio/wav" />
-          <audio controls>
-            <source src={audioUrl ?? "#"} type="audio/wav" />
-            Your browser does not support the audio or video element.
-          </audio>
-        </video>
+        <audio controls className={styles.audio} src={audioUrl ?? undefined}>
+          Your browser does not support the audio element.
+        </audio>
       </div>
       <div className={styles.alertTranscript}>
         {alert.transcript}
