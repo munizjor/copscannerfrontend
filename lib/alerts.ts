@@ -4,6 +4,7 @@
  * Alert interface for type reuse.
  */
 export interface Alert {
+  id: number;
   timestamp: string;
   feed: string;
   location: string;

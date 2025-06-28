@@ -11,11 +11,13 @@ import { formatLocalTime } from "../lib/date";
 import { filterAlerts, sortAlerts, Alert as AlertType } from "../lib/alerts";
 import { AlertCard } from "../components/AlertCard";
 import { AlertDetail } from "../components/AlertDetail";
+import Login from "../components/Login";
 
 const PAGE_SIZE = 15;
 const VIDEO_HEIGHT = 90;
 
 export default function Home() {
+  const [user, setUser] = useState<{ username: string } | null>(null);
   const [alerts, setAlerts] = useState<AlertType[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<AlertType | null>(null);
   const [classifierFilter, setClassifierFilter] = useState("");
@@ -29,6 +31,27 @@ export default function Home() {
   const [selectedFeed, setSelectedFeed] = useState<string>("");
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Check for existing login on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('userLogin');
+    if (saved) {
+      try {
+        const { username, timestamp } = JSON.parse(saved);
+        if (username === 'admin' && Date.now() - timestamp < 7 * 24 * 60 * 60 * 1000) {
+          setUser({ username });
+        } else {
+          localStorage.removeItem('userLogin');
+        }
+      } catch {}
+    }
+  }, []);
+
+  // Save login to localStorage on login
+  const handleLogin = (user: { username: string }) => {
+    setUser(user);
+    localStorage.setItem('userLogin', JSON.stringify({ username: user.username, timestamp: Date.now() }));
+  };
 
   // Fetch feeds on mount
   useEffect(() => {
@@ -168,11 +191,24 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [classifierFilter, keywordFilter, minScore, maxScore, selectedFeed, alerts]);
 
+  // Logout function
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('userLogin');
+  };
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app-container">
       {/* Header */}
       <header className="header">
-        <h1>CopScanner Alerts</h1>
+        <h1>Sherlock IQ</h1>
+        <button onClick={handleLogout} style={{ position: 'absolute', top: 16, right: 24, background: '#eee', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontWeight: 500 }}>
+          Logout
+        </button>
       </header>
       {error && (
         <div className="error-message">
