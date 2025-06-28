@@ -285,9 +285,9 @@ export default function Home() {
             >
               {filteredAlerts.map((alert, idx) => (
                 <AlertCard
-                  key={alert.timestamp + alert.feed + idx}
+                  key={alert.id}
                   alert={alert}
-                  isSelected={selectedAlert?.timestamp === alert.timestamp}
+                  isSelected={selectedAlert?.id === alert.id}
                   onClick={() => setSelectedAlert(alert)}
                 />
               ))}
