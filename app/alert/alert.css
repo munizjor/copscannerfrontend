@@ -1,0 +1,229 @@
+/* Global overrides for alert page */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Alert page mobile styles */
+.alertPageContainer {
+  display: flex;
+  min-height: calc(100vh - 128px);
+  flex-direction: row;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.alertPageSidebar {
+  width: 250px;
+  min-width: 250px;
+  max-width: 250px;
+  background: white;
+  border-right: 1px solid #ddd;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.alertPageNav {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alertPageButton {
+  width: 100%;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 0;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.alertPageButtonPrimary {
+  background: #2563eb;
+  color: white;
+}
+
+.alertPageButtonSecondary {
+  background: #eee;
+}
+
+.alertPageMain {
+  flex: 1;
+  padding: 2rem;
+  max-width: calc(100vw - 250px);
+  min-width: 0;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.alertPageCard {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  padding: 24px;
+  margin-bottom: 2rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+}
+
+.alertPageTitle {
+  margin: 0 0 1rem 0;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.alertPageScore {
+  font-size: 0.9rem;
+  color: #2563eb;
+  font-weight: 500;
+  margin-left: 12px;
+}
+
+.alertPageTimestamp {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.alertPageAudio {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 1.5rem;
+  box-sizing: border-box;
+}
+
+.alertPageTranscript {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  color: #222;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.alertPageInfo {
+  font-size: 0.98rem;
+  color: #333;
+}
+
+.alertPageInfoItem {
+  margin: 6px 0;
+  word-break: break-word;
+}
+
+.alertPageLink {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .alertPageContainer {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  
+  .alertPageSidebar {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+    padding: 0.5rem;
+  }
+  
+  .alertPageNav {
+    margin-bottom: 1rem;
+    flex-direction: row;
+    gap: 10px;
+  }
+  
+  .alertPageButton {
+    width: 50%;
+    padding: 8px 0;
+    font-size: 0.9rem;
+  }
+  
+  .alertPageMain {
+    padding: 1rem;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  
+  .alertPageCard {
+    padding: 16px;
+    margin-bottom: 1rem;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+  
+  .alertPageTitle {
+    font-size: 1.3rem;
+  }
+  
+  .alertPageScore {
+    font-size: 0.8rem;
+    margin-left: 8px;
+  }
+  
+  .alertPageTimestamp {
+    font-size: 0.85rem;
+  }
+  
+  .alertPageTranscript {
+    padding: 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  .alertPageInfo {
+    font-size: 0.9rem;
+  }
+  
+  .alertPageLink {
+    font-size: 0.9rem;
+  }
+}
+
+/* Extra small mobile */
+@media (max-width: 480px) {
+  .alertPageContainer {
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  .alertPageScore {
+    display: block;
+    margin-top: 4px;
+    margin-left: 0;
+  }
+  
+  .alertPageAudio {
+    height: 40px;
+  }
+  
+  .alertPageMain {
+    padding: 0.5rem;
+  }
+  
+  .alertPageCard {
+    padding: 12px;
+  }
+}
