@@ -26,6 +26,7 @@ export function AlertCard({ alert, isSelected, onClick }: AlertCardProps) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick();
+          e.currentTarget.blur(); // Remove focus after activation
         }
       }}
     >
