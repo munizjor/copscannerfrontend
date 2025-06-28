@@ -125,7 +125,7 @@ export default function Home() {
     }
   };
 
-  // Remove filtering and sorting here, just use alerts as is
+  // Filter and sort alerts as before
   const filteredAlerts = sortAlerts(filterAlerts(alerts, {
     keywordFilter,
     classifierFilter,
@@ -133,6 +133,11 @@ export default function Home() {
     maxScore,
     selectedFeed
   }));
+
+  // Filter out duplicate alerts by id (keep first occurrence only)
+  const uniqueAlerts = filteredAlerts.filter((alert: AlertType, idx: number, arr: AlertType[]) =>
+    arr.findIndex((a: AlertType) => a.id === alert.id) === idx
+  );
 
   // When a new alert is selected, update the audio element to reload the new source
   useEffect(() => {
@@ -283,7 +288,7 @@ export default function Home() {
               className="alerts-list"
               onScroll={handleScroll}
             >
-              {filteredAlerts.map((alert, idx) => (
+              {uniqueAlerts.map((alert: AlertType, idx: number) => (
                 <AlertCard
                   key={alert.id}
                   alert={alert}
