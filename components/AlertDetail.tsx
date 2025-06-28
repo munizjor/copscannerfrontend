@@ -1,5 +1,6 @@
 import React from "react";
 import { Alert as AlertType } from "../lib/alerts";
+import styles from "./AlertDetail.module.css";
 
 interface AlertDetailProps {
   alert: AlertType;
@@ -10,27 +11,38 @@ interface AlertDetailProps {
 export function AlertDetail({ alert, audioUrl, onClose }: AlertDetailProps) {
   if (!alert) return null;
   const VIDEO_HEIGHT = 90;
+
+  const handleDownload = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (!audioUrl) return;
+
+    try {
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `alert_${alert.timestamp.replace(/[:\s]/g, '_')}.wav`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
+    }
+  };
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div className={styles.container}>
       <button
         onClick={onClose}
         aria-label="Close"
-        style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          background: 'transparent',
-          border: 'none',
-          fontSize: '1.5rem',
-          cursor: 'pointer',
-          color: '#888',
-          zIndex: 2
-        }}
+        className={styles.closeButton}
       >
         ×
       </button>
-      <div className="audio-container">
-        <video controls style={{ width: '100%', height: VIDEO_HEIGHT }} {...{ name: "media" }}>
+      <div className={styles.audioContainer}>
+        <video controls className={styles.video}>
           <source src={audioUrl ?? "#"} type="audio/wav" />
           <audio controls>
             <source src={audioUrl ?? "#"} type="audio/wav" />
@@ -38,13 +50,19 @@ export function AlertDetail({ alert, audioUrl, onClose }: AlertDetailProps) {
           </audio>
         </video>
       </div>
-      <div className="alert-transcript">
+      <div className={styles.alertTranscript}>
         {alert.transcript}
       </div>
-      <div className="alert-info">
+      <div className={styles.alertInfo}>
         <p><strong>📍 Location:</strong> {alert.location}</p>
-        <p><strong>🔗 URL:</strong> <a href={alert.source_url} target="_blank" rel="noopener noreferrer">Feed</a></p>
-        <p><strong>🔍 Keyword:</strong> {alert.keyword}</p>
+        <p><strong>🔍 Police Code:</strong> {alert.keyword}</p>
+        {audioUrl && (
+          <p><strong>📥 Download:</strong>{' '}
+            <a href={audioUrl} onClick={handleDownload} className={styles.downloadLink}>
+              Download Audio
+            </a>
+          </p>
+        )}
       </div>
     </div>
   );

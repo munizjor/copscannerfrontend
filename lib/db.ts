@@ -20,7 +20,7 @@ export async function getRecentAlerts({ limit = 15, offset = 0, classifier = '',
   maxScore?: string,
   feed?: string
 } = {}) {
-  let query = `SELECT timestamp, feed, location, source_url, transcript, keyword, classifier_label, classifier_score, audio_path
+  let query = `SELECT id, timestamp, feed, location, source_url, transcript, keyword, classifier_label, classifier_score, audio_path
     FROM alerts`;
   const params: any[] = [];
   let whereClauses: string[] = [];
@@ -57,6 +57,7 @@ export async function getRecentAlerts({ limit = 15, offset = 0, classifier = '',
   const { rows } = await pool.query(query, params);
   return rows.map(row => ({
     ...row,
+    id: row.id,
     timestamp: row.timestamp,
     classifier_score: row.classifier_score !== null ? Number(row.classifier_score) : null
   }));

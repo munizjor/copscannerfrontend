@@ -1,6 +1,7 @@
 import React from "react";
 import { formatLocalTime } from "../lib/date";
 import { Alert as AlertType } from "../lib/alerts";
+import styles from "./AlertCard.module.css";
 
 interface AlertCardProps {
   alert: AlertType;
@@ -11,7 +12,11 @@ interface AlertCardProps {
 export function AlertCard({ alert, isSelected, onClick }: AlertCardProps) {
   return (
     <div
-      className={`alert-item${isSelected ? " active" : ""}`}
+      className={[
+        styles.alertItem,
+        `alert-item alert-id-${alert.id}`,
+        isSelected ? styles.active : ""
+      ].join(" ")}
       onClick={onClick}
       role="button"
       aria-pressed={isSelected}
@@ -23,30 +28,19 @@ export function AlertCard({ alert, isSelected, onClick }: AlertCardProps) {
           onClick();
         }
       }}
-      style={
-        isSelected
-          ? {
-              background: '#e0e7ef',
-              color: '#1e293b',
-              fontWeight: 600,
-              borderLeft: '4px solid #2563eb',
-              boxShadow: '0 1px 4px #cbd5e133',
-            }
-          : {}
-      }
     >
-      <p className="alert-title">
+      <p className={styles.alertTitle}>
         {alert.classifier_label}
-        <span className="alert-score">
+        <span className={styles.alertScore}>
           {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
             ? alert.classifier_score.toFixed(2)
             : 'N/A'}
         </span>
       </p>
-      <p className="alert-snippet">
+      <p className={styles.alertSnippet}>
         {alert.transcript.slice(0, 50)}...
       </p>
-      <p className="alert-timestamp">{formatLocalTime(alert.timestamp)}</p>
+      <p className={styles.alertTimestamp}>{formatLocalTime(alert.timestamp)}</p>
     </div>
   );
 }
