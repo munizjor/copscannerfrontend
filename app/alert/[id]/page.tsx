@@ -6,6 +6,7 @@ import { Alert as AlertType } from "../../../lib/alerts";
 import { fetchAudioUrl } from "../../../lib/api";
 import { formatLocalTime } from "../../../lib/date";
 import "../../styles.css";
+import "../alert.css";
 
 export default function AlertPage() {
   const params = useParams();
@@ -106,76 +107,71 @@ export default function AlertPage() {
         <h1>Sherlock IQ</h1>
       </header>
       
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 128px)' }}>
+      <div className="alertPageContainer">
         {/* Sidebar */}
-        <aside style={{ width: '250px', background: 'white', borderRight: '1px solid #ddd', padding: '1rem' }}>
-          <nav>
-            <div style={{ marginBottom: '2rem' }}>
-              <button
-                onClick={goHome}
-                style={{ width: '100%', background: '#2563eb', color: 'white', border: 'none', borderRadius: 4, padding: '10px 0', cursor: 'pointer', fontWeight: 500, marginBottom: '10px' }}
-              >
-                Home
-              </button>
-              <button
-                onClick={handleLogout}
-                style={{ width: '100%', background: '#eee', border: 'none', borderRadius: 4, padding: '10px 0', cursor: 'pointer', fontWeight: 500 }}
-              >
-                Logout
-              </button>
-            </div>
+        <aside className="alertPageSidebar">
+          <nav className="alertPageNav">
+            <button
+              onClick={goHome}
+              className="alertPageButton alertPageButtonPrimary"
+            >
+              Home
+            </button>
+            <button
+              onClick={handleLogout}
+              className="alertPageButton alertPageButtonSecondary"
+            >
+              Logout
+            </button>
           </nav>
         </aside>
         
         {/* Main Content */}
-        <div style={{ flex: 1, padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-        <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', padding: '24px', marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 1rem 0', color: '#1e293b' }}>
-            {alert.classifier_label}
-            <span style={{ fontSize: '0.9rem', color: '#2563eb', fontWeight: 500, marginLeft: '12px' }}>
-              {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
-                ? alert.classifier_score.toFixed(2)
-                : 'N/A'}
-            </span>
-          </h2>
-          
-          <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1rem' }}>
-            {formatLocalTime(alert.timestamp)}
-          </p>
+        <div className="alertPageMain">          <div className="alertPageCard">
+            <h2 className="alertPageTitle">
+              {alert.classifier_label}
+              <span className="alertPageScore">
+                {typeof alert.classifier_score === 'number' && !isNaN(alert.classifier_score)
+                  ? alert.classifier_score.toFixed(2)
+                  : 'N/A'}
+              </span>
+            </h2>
+            
+            <p className="alertPageTimestamp">
+              {formatLocalTime(alert.timestamp)}
+            </p>
 
-          {audioUrl && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <audio controls style={{ width: '100%' }} src={audioUrl}>
-                Your browser does not support the audio element.
-              </audio>
-            </div>
-          )}
-
-          <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
-            <p style={{ margin: 0, fontSize: '1.05rem', color: '#222', lineHeight: '1.5' }}>
-              {alert.transcript}
-            </p>
-          </div>
-
-          <div style={{ fontSize: '0.98rem', color: '#333' }}>
-            <p style={{ margin: '6px 0' }}>
-              <strong>📍 Location:</strong> {alert.location}
-            </p>
-            <p style={{ margin: '6px 0' }}>
-              <strong>📡 Feed:</strong> {alert.feed}
-            </p>
-            <p style={{ margin: '6px 0' }}>
-              <strong>🔍 Police Code:</strong> {alert.keyword}
-            </p>
             {audioUrl && (
-              <p style={{ margin: '6px 0' }}>
-                <strong>📥 Download:</strong>{' '}
-                <a href={audioUrl} onClick={handleDownload} style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontWeight: 500 }}>
-                  Download Audio
-                </a>
-              </p>
+              <div className="alertPageAudio">
+                <audio controls style={{ width: '100%', maxWidth: '100%' }} src={audioUrl}>
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
             )}
-          </div>
+
+            <div className="alertPageTranscript">
+              {alert.transcript}
+            </div>
+
+            <div className="alertPageInfo">
+              <p className="alertPageInfoItem">
+                <strong>📍 Location:</strong> {alert.location}
+              </p>
+              <p className="alertPageInfoItem">
+                <strong>📡 Feed:</strong> {alert.feed}
+              </p>
+              <p className="alertPageInfoItem">
+                <strong>🔍 Police Code:</strong> {alert.keyword}
+              </p>
+              {audioUrl && (
+                <p className="alertPageInfoItem">
+                  <strong>📥 Download:</strong>{' '}
+                  <a href={audioUrl} onClick={handleDownload} className="alertPageLink">
+                    Download Audio
+                  </a>
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
