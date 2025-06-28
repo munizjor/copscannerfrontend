@@ -19,13 +19,42 @@
   box-shadow: 0 1px 4px #cbd5e133;
 }
 
+.alertHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
 .alertTitle {
   font-size: 1.08rem;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+}
+
+.shareButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.shareButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #2563eb;
+}
+
+.active .shareButton:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .alertScore {

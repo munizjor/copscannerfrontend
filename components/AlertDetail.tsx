@@ -32,6 +32,11 @@ export function AlertDetail({ alert, audioUrl, onClose }: AlertDetailProps) {
     }
   };
 
+  const handleShareClick = () => {
+    const alertUrl = `${window.location.origin}/alert/${alert.id}`;
+    window.open(alertUrl, '_blank');
+  };
+
   return (
     <div className={styles.container}>
       <button
@@ -59,6 +64,11 @@ export function AlertDetail({ alert, audioUrl, onClose }: AlertDetailProps) {
             </a>
           </p>
         )}
+        <p><strong>🔗 Share:</strong>{' '}
+          <a href="#" onClick={(e) => { e.preventDefault(); handleShareClick(); }} className={styles.downloadLink}>
+            Alert {alert.id}
+          </a>
+        </p>
       </div>
     </div>
   );
