@@ -188,10 +188,16 @@ export default function Home() {
                 typeof alert.classifier_score === 'number' && 
                 alert.classifier_score >= 0.5) {
               console.log('Sending notification for violent crime alert:', alert);
-              showNotification('New Violent Crime Alert', {
+              const notification = new Notification('New Violent Crime Alert', {
                 body: `${alert.feed} - ${alert.location}\n${alert.transcript?.slice(0, 80)}`,
                 icon: '/favicon.ico'
               });
+              
+              // Add click handler to open the standalone alert page
+              notification.onclick = () => {
+                window.open(`/alert/${alert.id}`, '_blank');
+                notification.close();
+              };
             }
           });
         }
