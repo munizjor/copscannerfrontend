@@ -283,6 +283,7 @@ export default function Home() {
               <option value="violent crime">Violent Crime</option>
               <option value="non-violent">Non-violent</option>
               <option value="unrelated">Unrelated</option>
+              <option value="immigration">Immigration</option>
             </select>
             <input
               type="number"
